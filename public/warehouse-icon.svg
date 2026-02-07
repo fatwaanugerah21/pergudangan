@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Warehouse building -->
+  <rect x="20" y="40" width="60" height="50" fill="#16a34a" stroke="#15803d" stroke-width="2"/>
+  
+  <!-- Roof -->
+  <path d="M 20 40 L 50 20 L 80 40 Z" fill="#22c55e" stroke="#15803d" stroke-width="2"/>
+  
+  <!-- Door -->
+  <rect x="42" y="65" width="16" height="25" fill="#15803d"/>
+  <circle cx="55" cy="77" r="1.5" fill="#86efac"/>
+  
+  <!-- Windows -->
+  <rect x="28" y="50" width="8" height="8" fill="#86efac" stroke="#15803d" stroke-width="1"/>
+  <rect x="64" y="50" width="8" height="8" fill="#86efac" stroke="#15803d" stroke-width="1"/>
+  
+  <!-- Warehouse door (garage style) -->
+  <rect x="30" y="75" width="20" height="15" fill="#15803d" stroke="#0f5132" stroke-width="1"/>
+  <line x1="40" y1="75" x2="40" y2="90" stroke="#0f5132" stroke-width="1"/>
+</svg>

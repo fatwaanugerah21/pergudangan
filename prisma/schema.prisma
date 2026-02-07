@@ -1,0 +1,108 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RiceType {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  incomingTransactions IncomingTransaction[]
+  outgoingTransactions OutgoingTransaction[]
+  stockHistory         StockHistory[]
+
+  @@map("rice_types")
+}
+
+model Destination {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  type      String   @default("customer") // "supplier" or "customer"
+  alamat    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  outgoingTransactions OutgoingTransaction[]
+
+  @@map("destinations")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  alamat    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incomingTransactions IncomingTransaction[]
+
+  @@map("suppliers")
+}
+
+model IncomingTransaction {
+  id             String   @id @default(uuid())
+  date           DateTime @default(now())
+  riceTypeId     String
+  quantity       Float
+  supplierId     String
+  paymentAmount  Float?
+  notes         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  riceType RiceType @relation(fields: [riceTypeId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@map("incoming_transactions")
+}
+
+model OutgoingTransaction {
+  id             String   @id @default(uuid())
+  date           DateTime @default(now())
+  riceTypeId     String
+  quantity       Float
+  destinationId  String
+  paymentAmount  Float?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  riceType    RiceType    @relation(fields: [riceTypeId], references: [id], onDelete: Cascade)
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@map("outgoing_transactions")
+}
+
+model StockHistory {
+  id            String   @id @default(uuid())
+  riceTypeId    String
+  date          DateTime @default(now())
+  quantity      Float
+  type          String // "incoming" or "outgoing"
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  riceType RiceType @relation(fields: [riceTypeId], references: [id], onDelete: Cascade)
+
+  @@map("stock_history")
+}
