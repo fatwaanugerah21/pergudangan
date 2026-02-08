@@ -30,6 +30,7 @@ model RiceType {
   incomingTransactions IncomingTransaction[]
   outgoingTransactions OutgoingTransaction[]
   stockHistory         StockHistory[]
+  deliveryOrders       DeliveryOrder[]
 
   @@map("rice_types")
 }
@@ -43,6 +44,7 @@ model Destination {
   updatedAt DateTime @updatedAt
 
   outgoingTransactions OutgoingTransaction[]
+  deliveryOrders       DeliveryOrder[]
 
   @@map("destinations")
 }
@@ -77,20 +79,62 @@ model IncomingTransaction {
 }
 
 model OutgoingTransaction {
-  id             String   @id @default(uuid())
-  date           DateTime @default(now())
-  riceTypeId     String
-  quantity       Float
-  destinationId  String
-  paymentAmount  Float?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  date                  DateTime  @default(now())
+  riceTypeId            String
+  quantity              Float
+  destinationId         String
+  paymentAmount         Float?    // Total amount received so far (for full: total; for installment: cumulative)
+  totalAmount           Float?    // Total sale amount (required for installment - full price)
+  downPayment           Float?    // Initial payment (uang muka) for installment
+  paymentStatus         String    @default("full") // full | partial | unpaid
+  scheduledDeliveryDate DateTime?  // If set, order will appear in Order Pengantaran
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime @updatedAt
 
-  riceType    RiceType    @relation(fields: [riceTypeId], references: [id], onDelete: Cascade)
-  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  riceType       RiceType       @relation(fields: [riceTypeId], references: [id], onDelete: Cascade)
+  destination    Destination    @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  installments   Installment[]
+  deliveryOrder  DeliveryOrder?
 
   @@map("outgoing_transactions")
+}
+
+model Installment {
+  id                    String    @id @default(uuid())
+  outgoingTransactionId String
+  amount                Float     // Planned installment amount
+  dueDate               DateTime
+  paidAmount            Float     @default(0)
+  paidAt                DateTime?
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  outgoingTransaction OutgoingTransaction @relation(fields: [outgoingTransactionId], references: [id], onDelete: Cascade)
+
+  @@map("installments")
+}
+
+model DeliveryOrder {
+  id                     String    @id @default(uuid())
+  outgoingTransactionId  String?   @unique // When set, created from Outgoing (Tanggal Pengantaran)
+  destinationId          String
+  riceTypeId             String
+  quantity               Float
+  scheduledDeliveryDate  DateTime
+  deliveryAddress        String?
+  status                 String    @default("pending") // pending | dispatched | delivered | cancelled
+  notes                  String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  destination         Destination         @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  riceType            RiceType            @relation(fields: [riceTypeId], references: [id], onDelete: Cascade)
+  outgoingTransaction OutgoingTransaction? @relation(fields: [outgoingTransactionId], references: [id], onDelete: SetNull)
+
+  @@map("delivery_orders")
 }
 
 model StockHistory {

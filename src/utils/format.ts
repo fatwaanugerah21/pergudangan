@@ -65,6 +65,20 @@ export const formatCurrency = (value: number | string | undefined | null): strin
 };
 
 /**
+ * Format a Date to YYYY-MM-DDTHH:mm in the user's local timezone (for datetime inputs).
+ * @param date - Date to format; defaults to now if omitted
+ * @returns String suitable for input[type="datetime-local"] value
+ */
+export const toLocalDateTimeString = (date: Date = new Date()): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  const h = String(date.getHours()).padStart(2, '0');
+  const min = String(date.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${d}T${h}:${min}`;
+};
+
+/**
  * Format date to Indonesian format (e.g., "16 Januari 2025")
  * @param date - Date string, Date object, or timestamp
  * @returns Formatted date string in Indonesian format

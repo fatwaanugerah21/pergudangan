@@ -5,6 +5,7 @@ import { DatePicker } from '../components/ui/date-picker';
 import type { DashboardData, DashboardChartsData } from '../types';
 import {
   DashboardSummaryCards,
+  DashboardReminders,
   DashboardStockChart,
   DashboardIncomingChart,
   DashboardOutgoingChart,
@@ -42,7 +43,7 @@ export default function Dashboard() {
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { error?: string } } }).response?.data?.error
           : null;
-      setError(message || 'Failed to load dashboard');
+      setError(message || 'Gagal memuat dashboard');
     } finally {
       setLoading(false);
     }
@@ -113,6 +114,8 @@ export default function Dashboard() {
           selectedChart={selectedChart}
           onSelectChart={setSelectedChart}
         />
+
+        <DashboardReminders />
 
         {
           selectedChart !== "lowstock" && <div className="mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">

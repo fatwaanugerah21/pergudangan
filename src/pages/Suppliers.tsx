@@ -9,7 +9,9 @@ import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { Tooltip } from '../components/ui/tooltip';
 import { useToast } from '../contexts/ToastContext';
 import { formatNumberWithUnit } from '../utils/format';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+
+type SupplierSortField = 'name' | 'alamat' | 'totalPemasokan' | 'jumlahTransaksi' | null;
 
 interface SupplierWithStats extends Supplier {
   totalPemasokan?: number;
@@ -25,10 +27,13 @@ export default function Suppliers() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<SupplierSortField>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     alamat: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
@@ -48,7 +53,13 @@ export default function Suppliers() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    const errors: Record<string, string> = {};
+    if (!formData.name?.trim()) errors.name = 'Nama Pemasok wajib diisi.';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     try {
       if (editing) {
         await api.put(`/suppliers/${editing.id}`, formData);
@@ -60,6 +71,7 @@ export default function Suppliers() {
       setShowModal(false);
       setEditing(null);
       setFormData({ name: '', alamat: '' });
+      setFormErrors({});
       fetchSuppliers();
     } catch (err: any) {
       showError(err.response?.data?.error || 'Gagal menyimpan pemasok');
@@ -68,6 +80,7 @@ export default function Suppliers() {
 
   const handleEdit = (supplier: SupplierWithStats) => {
     setEditing(supplier);
+    setFormErrors({});
     setFormData({
       name: supplier.name,
       alamat: supplier.alamat || '',
@@ -102,6 +115,64 @@ export default function Suppliers() {
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const toggleSort = (field: SupplierSortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedSuppliers = [...filteredSuppliers].sort((a, b) => {
+    if (!sortField || !sortDirection) return 0;
+    let aVal: string | number;
+    let bVal: string | number;
+    switch (sortField) {
+      case 'name':
+        aVal = a.name?.toLowerCase() ?? '';
+        bVal = b.name?.toLowerCase() ?? '';
+        break;
+      case 'alamat':
+        aVal = a.alamat ?? '';
+        bVal = b.alamat ?? '';
+        break;
+      case 'totalPemasokan':
+        aVal = a.totalPemasokan ?? 0;
+        bVal = b.totalPemasokan ?? 0;
+        break;
+      case 'jumlahTransaksi':
+        aVal = a.jumlahTransaksi ?? 0;
+        bVal = b.jumlahTransaksi ?? 0;
+        break;
+      default:
+        return 0;
+    }
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const SortableTh = ({ field, label }: { field: SupplierSortField; label: string }) => (
+    <th
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+      onClick={() => field != null && toggleSort(field)}
+    >
+      <div className="flex items-center gap-2">
+        {label}
+        {sortField === field ? (
+          sortDirection === 'asc' ? (
+            <FaSortUp className="h-3 w-3" />
+          ) : (
+            <FaSortDown className="h-3 w-3" />
+          )
+        ) : (
+          <FaSort className="h-3 w-3 text-gray-400" />
+        )}
+      </div>
+    </th>
+  );
+
   return (
     <Layout>
       <div className="px-4 py-6 sm:px-0">
@@ -110,6 +181,7 @@ export default function Suppliers() {
           <button
             onClick={() => {
               setEditing(null);
+              setFormErrors({});
               setFormData({ name: '', alamat: '' });
               setShowModal(true);
             }}
@@ -120,24 +192,24 @@ export default function Suppliers() {
         </div>
 
         <CollapsibleFilters
-          label="Filters"
+          label="Filter"
           activeCount={searchTerm.trim() ? 1 : 0}
           defaultOpen={false}
           className="mb-6"
         >
           <Input
-            label="Search Supplier"
+            label="Cari Pemasok"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name..."
+            placeholder="Cari berdasarkan nama..."
           />
           <FilterActions>
             <button
               onClick={() => setSearchTerm('')}
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              Clear
+              Hapus
             </button>
           </FilterActions>
         </CollapsibleFilters>
@@ -150,32 +222,24 @@ export default function Suppliers() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nama Pemasok
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Alamat
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Pemasokan
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jumlah Transaksi
-                    </th>
+                    <SortableTh field="name" label="Nama Pemasok" />
+                    <SortableTh field="alamat" label="Alamat" />
+                    <SortableTh field="totalPemasokan" label="Total Pemasokan" />
+                    <SortableTh field="jumlahTransaksi" label="Jumlah Transaksi" />
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Aksi
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSuppliers.length === 0 ? (
+                  {sortedSuppliers.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
                         {searchTerm ? 'Tidak ada pemasok ditemukan' : 'Tidak ada data pemasok'}
                       </td>
                     </tr>
                   ) : (
-                    filteredSuppliers.map((supplier) => (
+                    sortedSuppliers.map((supplier) => (
                       <tr key={supplier.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {supplier.name}
@@ -241,22 +305,25 @@ export default function Suppliers() {
           onClose={() => {
             setShowModal(false);
             setEditing(null);
+            setFormErrors({});
             setFormData({ name: '', alamat: '' });
           }}
           title={editing ? 'Edit Pemasok' : 'Tambah Pemasok'}
           size="md"
         >
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="space-y-4">
               <Input
                 label="Nama Pemasok"
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (formErrors.name) setFormErrors((p) => ({ ...p, name: '' }));
+                }}
                 placeholder="Masukkan nama pemasok"
+                error={formErrors.name}
               />
               <Input
                 label="Alamat"
@@ -274,6 +341,7 @@ export default function Suppliers() {
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
+                  setFormErrors({});
                   setFormData({ name: '', alamat: '' });
                 }}
                 className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20"

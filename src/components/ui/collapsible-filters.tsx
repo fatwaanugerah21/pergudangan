@@ -16,7 +16,7 @@ export function CollapsibleFilters({
   activeCount = 0,
   defaultOpen = false,
   className,
-  label = 'Filters',
+  label = 'Filter',
 }: CollapsibleFiltersProps) {
   const [isOpen, setIsOpen] = React.useState(defaultOpen || activeCount > 0);
 

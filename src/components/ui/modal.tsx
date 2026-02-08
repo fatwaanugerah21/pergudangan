@@ -53,47 +53,51 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={handleOverlayClick}
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto p-4">
       {/* Backdrop */}
       <div
         className={cn(
-          'absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300',
+          'fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 pointer-events-none',
           isOpen ? 'opacity-100' : 'opacity-0'
         )}
+        aria-hidden
       />
 
-      {/* Modal */}
+      {/* Center wrapper: min height so modal is centered when short; when modal is tall, this grows and the outer scrolls */}
       <div
-        className={cn(
-          'relative w-full bg-white rounded-2xl shadow-2xl',
-          'transform transition-all duration-300 ease-out',
-          sizeClasses[size],
-          isOpen
-            ? 'scale-100 opacity-100 translate-y-0'
-            : 'scale-95 opacity-0 translate-y-4'
-        )}
-        onClick={(e) => e.stopPropagation()}
+        className="min-h-[calc(100vh-2rem)] flex items-center justify-center"
+        onClick={handleOverlayClick}
       >
-        {/* Header */}
-        {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-            <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-              >
-                <FaTimes className="h-5 w-5" />
-              </button>
-            )}
-          </div>
-        )}
+        {/* Modal box: no max-height; entire modal scrolls with the overlay */}
+        <div
+          className={cn(
+            'relative w-full bg-white rounded-2xl shadow-2xl',
+            'transform transition-all duration-300 ease-out',
+            sizeClasses[size],
+            isOpen
+              ? 'scale-100 opacity-100 translate-y-0'
+              : 'scale-95 opacity-0 translate-y-4'
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          {title && (
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
+              {showCloseButton && (
+                <button
+                  onClick={onClose}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <FaTimes className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          )}
 
-        {/* Content */}
-        <div className="px-6 py-4">{children}</div>
+          {/* Content */}
+          <div className="px-6 py-4">{children}</div>
+        </div>
       </div>
     </div>
   );

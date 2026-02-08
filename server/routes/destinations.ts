@@ -30,6 +30,15 @@ router.get('/', async (req: Request, res: Response) => {
         0
       );
       const jumlahTransaksi = destination.outgoingTransactions.length;
+      const totalTagihan = destination.outgoingTransactions.reduce(
+        (sum, t) => sum + (t.totalAmount ?? t.paymentAmount ?? 0),
+        0
+      );
+      const totalPembayaran = destination.outgoingTransactions.reduce(
+        (sum, t) => sum + (t.paymentAmount ?? 0),
+        0
+      );
+      const totalUtang = totalTagihan - totalPembayaran;
 
       return {
         id: destination.id,
@@ -40,6 +49,9 @@ router.get('/', async (req: Request, res: Response) => {
         updatedAt: destination.updatedAt,
         totalPembelian,
         jumlahTransaksi,
+        totalTagihan,
+        totalPembayaran,
+        totalUtang,
       };
     });
 

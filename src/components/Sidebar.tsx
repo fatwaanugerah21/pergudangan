@@ -10,6 +10,8 @@ import {
   FaSignOutAlt,
   FaTruck,
   FaUsers,
+  FaMoneyBillWave,
+  FaShippingFast,
 } from 'react-icons/fa';
 import { FaWheatAwn } from 'react-icons/fa6';
 
@@ -35,6 +37,8 @@ export default function Sidebar({ isMobile = false, onClose }: SidebarProps) {
     { path: '/destinations', label: 'Data Master Pelanggan', icon: FaUsers, color: 'text-cyan-600' },
     { path: '/incoming', label: 'Pemasukan Beras', icon: FaArrowDown, color: 'text-green-600' },
     { path: '/outgoing', label: 'Penjualan Beras', icon: FaArrowUp, color: 'text-red-600' },
+    { path: '/debt', label: 'Utang', icon: FaMoneyBillWave, color: 'text-amber-600' },
+    { path: '/delivery-orders', label: 'Order Pengantaran', icon: FaShippingFast, color: 'text-teal-600' },
     { path: '/stock', label: 'Manajemen Stok', icon: FaBoxes, color: 'text-indigo-600' },
     { path: '/reports', label: 'Laporan', icon: FaFileAlt, color: 'text-purple-600' },
   ];

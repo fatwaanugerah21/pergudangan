@@ -22,6 +22,7 @@ export default function RiceTypes() {
     name: '',
     description: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
@@ -41,7 +42,13 @@ export default function RiceTypes() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    const errors: Record<string, string> = {};
+    if (!formData.name?.trim()) errors.name = 'Nama wajib diisi.';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     try {
       if (editing) {
         await api.put(`/rice-types/${editing.id}`, formData);
@@ -53,6 +60,7 @@ export default function RiceTypes() {
       setShowModal(false);
       setEditing(null);
       setFormData({ name: '', description: '' });
+      setFormErrors({});
       fetchRiceTypes();
     } catch (err: any) {
       showError(err.response?.data?.error || 'Gagal menyimpan jenis beras');
@@ -61,6 +69,7 @@ export default function RiceTypes() {
 
   const handleEdit = (riceType: RiceType) => {
     setEditing(riceType);
+    setFormErrors({});
     setFormData({
       name: riceType.name,
       description: riceType.description || '',
@@ -102,6 +111,7 @@ export default function RiceTypes() {
           <button
             onClick={() => {
               setEditing(null);
+              setFormErrors({});
               setFormData({ name: '', description: '' });
               setShowModal(true);
             }}
@@ -112,24 +122,24 @@ export default function RiceTypes() {
         </div>
 
         <CollapsibleFilters
-          label="Filters"
+          label="Filter"
           activeCount={searchTerm.trim() ? 1 : 0}
           defaultOpen={false}
           className="mb-6"
         >
           <Input
-            label="Search Rice Type"
+            label="Cari Jenis Beras"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name..."
+            placeholder="Cari berdasarkan nama..."
           />
           <FilterActions>
             <button
               onClick={() => setSearchTerm('')}
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              Clear
+              Hapus
             </button>
           </FilterActions>
         </CollapsibleFilters>
@@ -189,21 +199,24 @@ title="Ubah"
           onClose={() => {
             setShowModal(false);
             setEditing(null);
+            setFormErrors({});
             setFormData({ name: '', description: '' });
           }}
           title={editing ? 'Edit Jenis Beras' : 'Tambah Jenis Beras'}
           size="md"
         >
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="space-y-4">
               <Input
                 label="Nama"
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (formErrors.name) setFormErrors((p) => ({ ...p, name: '' }));
+                }}
+                error={formErrors.name}
               />
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -225,6 +238,7 @@ title="Ubah"
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
+                  setFormErrors({});
                   setFormData({
                     name: '',
                     description: '',

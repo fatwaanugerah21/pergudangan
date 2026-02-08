@@ -45,6 +45,19 @@ export interface IncomingTransaction {
   supplier?: Supplier;
 }
 
+export interface Installment {
+  id: string;
+  outgoingTransactionId: string;
+  amount: number;
+  dueDate: string;
+  paidAmount: number;
+  paidAt: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  outgoingTransaction?: OutgoingTransaction;
+}
+
 export interface OutgoingTransaction {
   id: string;
   date: string;
@@ -52,7 +65,27 @@ export interface OutgoingTransaction {
   quantity: number;
   destinationId: string;
   paymentAmount?: number | null;
+  totalAmount?: number | null;
+  downPayment?: number | null;
+  paymentStatus?: string;
+  scheduledDeliveryDate?: string | null;
   notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  riceType?: RiceType;
+  destination?: Destination;
+  installments?: Installment[];
+}
+
+export interface DeliveryOrder {
+  id: string;
+  destinationId: string;
+  riceTypeId: string;
+  quantity: number;
+  scheduledDeliveryDate: string;
+  deliveryAddress?: string | null;
+  status: string;
+  notes?: string | null;
   createdAt: string;
   updatedAt: string;
   riceType?: RiceType;

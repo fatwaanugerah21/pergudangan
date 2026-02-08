@@ -10,6 +10,8 @@ import Destinations from './pages/Destinations';
 import StockManagement from './pages/StockManagement';
 import Incoming from './pages/Incoming';
 import Outgoing from './pages/Outgoing';
+import Debt from './pages/Debt';
+import DeliveryOrders from './pages/DeliveryOrders';
 import Reports from './pages/Reports';
 
 function AppRoutes() {
@@ -74,6 +76,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Outgoing />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/debt"
+        element={
+          <ProtectedRoute>
+            <Debt />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/delivery-orders"
+        element={
+          <ProtectedRoute>
+            <DeliveryOrders />
           </ProtectedRoute>
         }
       />

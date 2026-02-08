@@ -10,6 +10,8 @@ import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
 import destinationRoutes from './routes/destinations.js';
 import supplierRoutes from './routes/suppliers.js';
+import installmentRoutes from './routes/installments.js';
+import deliveryOrderRoutes from './routes/deliveryOrders.js';
 
 dotenv.config();
 
@@ -29,6 +31,8 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/destinations', destinationRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/installments', installmentRoutes);
+app.use('/api/delivery-orders', deliveryOrderRoutes);
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });

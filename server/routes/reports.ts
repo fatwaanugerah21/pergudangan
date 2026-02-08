@@ -9,7 +9,7 @@ router.use(authenticateToken);
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { startDate, endDate, type, riceTypeId, supplierId, destinationId } = req.query;
+    const { startDate, endDate, type, riceTypeId, supplierId, destinationId, paymentStatus } = req.query;
 
     const baseWhere: {
       date?: { gte?: Date; lte?: Date };
@@ -68,8 +68,13 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     if (type === 'outgoing' || !type) {
-      const outgoingWhere = { ...baseWhere } as any;
+      const outgoingWhere = { ...baseWhere } as Record<string, unknown>;
       if (destinationId) outgoingWhere.destinationId = destinationId as string;
+      if (paymentStatus === 'full') {
+        outgoingWhere.paymentStatus = 'full';
+      } else if (paymentStatus === 'unpaid') {
+        outgoingWhere.paymentStatus = { in: ['partial', 'unpaid'] };
+      }
       const outgoing = await prisma.outgoingTransaction.findMany({
         where: outgoingWhere,
         include: {

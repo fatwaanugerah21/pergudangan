@@ -7,6 +7,9 @@ import { Select } from '../components/ui/select';
 import { Tooltip } from '../components/ui/tooltip';
 import { CollapsibleFilters, FilterActions } from '../components/ui/collapsible-filters';
 import { formatNumberWithUnit, formatDateTime } from '../utils/format';
+import { FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+
+type ReportSortField = 'date' | 'type' | 'riceType' | 'quantity' | 'partner' | null;
 
 interface Destination {
   id: string;
@@ -38,11 +41,14 @@ export default function Reports() {
     riceTypeId?: string;
     supplierId?: string;
     destinationId?: string;
+    paymentStatus?: string;
   }>({
     startDate: '',
     endDate: '',
     type: 'all',
   });
+  const [sortField, setSortField] = useState<ReportSortField>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -72,11 +78,13 @@ export default function Reports() {
       if (filters.riceTypeId) params.riceTypeId = filters.riceTypeId;
       if (filters.supplierId) params.supplierId = filters.supplierId;
       if (filters.destinationId) params.destinationId = filters.destinationId;
+      if (filters.paymentStatus && (filters.type === 'outgoing' || filters.type === 'all'))
+        params.paymentStatus = filters.paymentStatus;
 
       const response = await api.get('/reports', { params });
       setReports(response.data);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load reports');
+      setError(err.response?.data?.error || 'Gagal memuat laporan');
     } finally {
       setLoading(false);
     }
@@ -137,34 +145,35 @@ export default function Reports() {
         </div>
 
         <CollapsibleFilters
-          label="Filters"
+          label="Filter"
           activeCount={
             (filters.startDate ? 1 : 0) +
             (filters.endDate ? 1 : 0) +
             (filters.type !== 'all' ? 1 : 0) +
             (filters.riceTypeId ? 1 : 0) +
             (filters.supplierId ? 1 : 0) +
-            (filters.destinationId ? 1 : 0)
+            (filters.destinationId ? 1 : 0) +
+            (filters.paymentStatus ? 1 : 0)
           }
           defaultOpen={false}
           className="mb-6"
         >
           <DatePicker
-            label="Start Date"
+            label="Dari Tanggal"
             value={filters.startDate}
             onChange={(date) => setFilters({ ...filters, startDate: date })}
-            placeholder="Select start date"
+            placeholder="Pilih tanggal awal"
             maxDate={filters.endDate ? new Date(filters.endDate) : new Date()}
           />
           <DatePicker
-            label="End Date"
+            label="Sampai Tanggal"
             value={filters.endDate}
             onChange={(date) => setFilters({ ...filters, endDate: date })}
-            placeholder="Select end date"
+            placeholder="Pilih tanggal akhir"
             maxDate={new Date()}
           />
           <Select
-            label="Type"
+            label="Tipe"
             value={filters.type}
             onChange={(value) =>
               setFilters({
@@ -173,47 +182,62 @@ export default function Reports() {
               })
             }
             options={[
-              { value: 'all', label: 'All' },
-              { value: 'incoming', label: 'Incoming' },
-              { value: 'outgoing', label: 'Outgoing' },
+              { value: 'all', label: 'Semua' },
+              { value: 'incoming', label: 'Pemasukan' },
+              { value: 'outgoing', label: 'Pengeluaran' },
             ]}
           />
           <Select
-            label="Rice Type"
+            label="Jenis Beras"
             value={filters.riceTypeId || ''}
             onChange={(value) =>
               setFilters({ ...filters, riceTypeId: value || undefined })
             }
-            placeholder="All rice types"
+            placeholder="Semua jenis beras"
             options={[
-              { value: '', label: 'All rice types' },
+              { value: '', label: 'Semua jenis beras' },
               ...riceTypes.map((rt) => ({ value: rt.id, label: rt.name })),
             ]}
           />
           <Select
-            label="Supplier (Incoming)"
+            label="Pemasok (Pemasukan)"
             value={filters.supplierId || ''}
             onChange={(value) =>
               setFilters({ ...filters, supplierId: value || undefined })
             }
-            placeholder="All suppliers"
+            placeholder="Semua pemasok"
             options={[
-              { value: '', label: 'All suppliers' },
+              { value: '', label: 'Semua pemasok' },
               ...suppliers.map((s) => ({ value: s.id, label: s.name })),
             ]}
           />
           <Select
-            label="Customer (Outgoing)"
+            label="Pelanggan (Pengeluaran)"
             value={filters.destinationId || ''}
             onChange={(value) =>
               setFilters({ ...filters, destinationId: value || undefined })
             }
-            placeholder="All customers"
+            placeholder="Semua pelanggan"
             options={[
-              { value: '', label: 'All customers' },
+              { value: '', label: 'Semua pelanggan' },
               ...destinations.map((d) => ({ value: d.id, label: d.name })),
             ]}
           />
+          {(filters.type === 'outgoing' || filters.type === 'all') && (
+            <Select
+              label="Status Pembayaran"
+              value={filters.paymentStatus || ''}
+              onChange={(value) =>
+                setFilters({ ...filters, paymentStatus: value || undefined })
+              }
+              placeholder="Semua"
+              options={[
+                { value: '', label: 'Semua' },
+                { value: 'full', label: 'Lunas' },
+                { value: 'unpaid', label: 'Masih Utang' },
+              ]}
+            />
+          )}
           <FilterActions className="sm:col-span-2 lg:col-span-4 xl:col-span-5">
             <button
               onClick={() =>
@@ -224,11 +248,12 @@ export default function Reports() {
                   riceTypeId: undefined,
                   supplierId: undefined,
                   destinationId: undefined,
+                  paymentStatus: undefined,
                 })
               }
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              Clear filters
+              Hapus filter
             </button>
           </FilterActions>
         </CollapsibleFilters>
@@ -247,28 +272,84 @@ export default function Reports() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tanggal
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipe
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jenis Beras
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jumlah
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Pemasok / Tujuan
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Catatan
-                    </th>
+                    {(() => {
+                      const toggleSort = (field: ReportSortField) => {
+                        if (sortField === field) {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortField(field);
+                          setSortDirection('asc');
+                        }
+                      };
+                      const SortableTh = ({ field, label }: { field: ReportSortField; label: string }) => (
+                        <th
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                          onClick={() => field != null && toggleSort(field)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {label}
+                            {sortField === field ? (
+                              sortDirection === 'asc' ? (
+                                <FaSortUp className="h-3 w-3" />
+                              ) : (
+                                <FaSortDown className="h-3 w-3" />
+                              )
+                            ) : (
+                              <FaSort className="h-3 w-3 text-gray-400" />
+                            )}
+                          </div>
+                        </th>
+                      );
+                      return (
+                        <>
+                          <SortableTh field="date" label="Tanggal" />
+                          <SortableTh field="type" label="Tipe" />
+                          <SortableTh field="riceType" label="Jenis Beras" />
+                          <SortableTh field="quantity" label="Jumlah" />
+                          <SortableTh field="partner" label="Pemasok / Tujuan" />
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Catatan
+                          </th>
+                        </>
+                      );
+                    })()}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {reports.map((item) => (
+                  {[...reports]
+                    .sort((a, b) => {
+                      if (!sortField || !sortDirection) return 0;
+                      let aVal: string | number;
+                      let bVal: string | number;
+                      switch (sortField) {
+                        case 'date':
+                          aVal = new Date(a.date).getTime();
+                          bVal = new Date(b.date).getTime();
+                          break;
+                        case 'type':
+                          aVal = a.transactionType ?? '';
+                          bVal = b.transactionType ?? '';
+                          break;
+                        case 'riceType':
+                          aVal = a.riceType?.name ?? '';
+                          bVal = b.riceType?.name ?? '';
+                          break;
+                        case 'quantity':
+                          aVal = a.quantity;
+                          bVal = b.quantity;
+                          break;
+                        case 'partner':
+                          aVal = getPartnerName(a);
+                          bVal = getPartnerName(b);
+                          break;
+                        default:
+                          return 0;
+                      }
+                      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                      return 0;
+                    })
+                    .map((item) => (
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDateTime(item.date)}

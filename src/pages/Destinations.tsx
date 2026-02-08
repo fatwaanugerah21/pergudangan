@@ -9,12 +9,17 @@ import { Modal } from '../components/ui/modal';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { Tooltip } from '../components/ui/tooltip';
 import { useToast } from '../contexts/ToastContext';
-import { formatNumberWithUnit } from '../utils/format';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { formatNumberWithUnit, formatCurrency } from '../utils/format';
+import { FaEdit, FaTrash, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+
+type DestSortField = 'name' | 'type' | 'alamat' | 'totalPembelian' | 'jumlahTransaksi' | 'totalTagihan' | 'totalPembayaran' | 'totalUtang' | null;
 
 interface DestinationWithStats extends Destination {
   totalPembelian?: number;
   jumlahTransaksi?: number;
+  totalTagihan?: number;
+  totalPembayaran?: number;
+  totalUtang?: number;
 }
 
 export default function Destinations() {
@@ -27,11 +32,15 @@ export default function Destinations() {
   const [editing, setEditing] = useState<DestinationWithStats | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<string>('');
+  const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('');
+  const [sortField, setSortField] = useState<DestSortField>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc' | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     type: 'customer',
     alamat: '',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
@@ -51,7 +60,14 @@ export default function Destinations() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    const errors: Record<string, string> = {};
+    if (!formData.name?.trim()) errors.name = 'Nama Pelanggan wajib diisi.';
+    if (!formData.type?.trim()) errors.type = 'Tipe wajib dipilih.';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
     try {
       if (editing) {
         await api.put(`/destinations/${editing.id}`, formData);
@@ -63,6 +79,7 @@ export default function Destinations() {
       setShowModal(false);
       setEditing(null);
       setFormData({ name: '', type: 'customer', alamat: '' });
+      setFormErrors({});
       fetchDestinations();
     } catch (err: any) {
       showError(err.response?.data?.error || 'Gagal menyimpan pelanggan');
@@ -71,6 +88,7 @@ export default function Destinations() {
 
   const handleEdit = (destination: DestinationWithStats) => {
     setEditing(destination);
+    setFormErrors({});
     setFormData({
       name: destination.name,
       type: destination.type || 'customer',
@@ -104,8 +122,87 @@ export default function Destinations() {
   const filteredDestinations = destinations.filter((destination) => {
     const matchesSearch = destination.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !filterType || destination.type === filterType;
-    return matchesSearch && matchesType;
+    const debt = destination.totalUtang ?? 0;
+    const matchesPaymentStatus =
+      !filterPaymentStatus ||
+      (filterPaymentStatus === 'full' && debt <= 0) ||
+      (filterPaymentStatus === 'unpaid' && debt > 0);
+    return matchesSearch && matchesType && matchesPaymentStatus;
   });
+
+  const toggleSort = (field: DestSortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedDestinations = [...filteredDestinations].sort((a, b) => {
+    if (!sortField || !sortDirection) return 0;
+    let aVal: string | number;
+    let bVal: string | number;
+    switch (sortField) {
+      case 'name':
+        aVal = a.name?.toLowerCase() ?? '';
+        bVal = b.name?.toLowerCase() ?? '';
+        break;
+      case 'type':
+        aVal = a.type ?? '';
+        bVal = b.type ?? '';
+        break;
+      case 'alamat':
+        aVal = a.alamat ?? '';
+        bVal = b.alamat ?? '';
+        break;
+      case 'totalPembelian':
+        aVal = a.totalPembelian ?? 0;
+        bVal = b.totalPembelian ?? 0;
+        break;
+      case 'jumlahTransaksi':
+        aVal = a.jumlahTransaksi ?? 0;
+        bVal = b.jumlahTransaksi ?? 0;
+        break;
+      case 'totalTagihan':
+        aVal = a.totalTagihan ?? 0;
+        bVal = b.totalTagihan ?? 0;
+        break;
+      case 'totalPembayaran':
+        aVal = a.totalPembayaran ?? 0;
+        bVal = b.totalPembayaran ?? 0;
+        break;
+      case 'totalUtang':
+        aVal = a.totalUtang ?? 0;
+        bVal = b.totalUtang ?? 0;
+        break;
+      default:
+        return 0;
+    }
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const SortableTh = ({ field, label }: { field: DestSortField; label: string }) => (
+    <th
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+      onClick={() => field != null && toggleSort(field)}
+    >
+      <div className="flex items-center gap-2">
+        {label}
+        {sortField === field ? (
+          sortDirection === 'asc' ? (
+            <FaSortUp className="h-3 w-3" />
+          ) : (
+            <FaSortDown className="h-3 w-3" />
+          )
+        ) : (
+          <FaSort className="h-3 w-3 text-gray-400" />
+        )}
+      </div>
+    </th>
+  );
 
   return (
     <Layout>
@@ -115,6 +212,7 @@ export default function Destinations() {
           <button
             onClick={() => {
               setEditing(null);
+              setFormErrors({});
               setFormData({ name: '', type: 'customer', alamat: '' });
               setShowModal(true);
             }}
@@ -125,27 +223,38 @@ export default function Destinations() {
         </div>
 
         <CollapsibleFilters
-          label="Filters"
-          activeCount={(searchTerm.trim() ? 1 : 0) + (filterType ? 1 : 0)}
+          label="Filter"
+          activeCount={(searchTerm.trim() ? 1 : 0) + (filterType ? 1 : 0) + (filterPaymentStatus ? 1 : 0)}
           defaultOpen={false}
           className="mb-6"
         >
           <Input
-            label="Search"
+            label="Cari"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by name..."
+            placeholder="Cari berdasarkan nama..."
           />
           <Select
-            label="Type"
+            label="Tipe"
             value={filterType}
             onChange={(value) => setFilterType(value)}
-            placeholder="All types"
+            placeholder="Semua tipe"
             options={[
-              { value: '', label: 'All types' },
-              { value: 'customer', label: 'Customer' },
-              { value: 'supplier', label: 'Supplier' },
+              { value: '', label: 'Semua tipe' },
+              { value: 'customer', label: 'Pelanggan' },
+              { value: 'supplier', label: 'Pemasok' },
+            ]}
+          />
+          <Select
+            label="Status Pembayaran"
+            value={filterPaymentStatus}
+            onChange={(value) => setFilterPaymentStatus(value)}
+            placeholder="Semua"
+            options={[
+              { value: '', label: 'Semua' },
+              { value: 'full', label: 'Lunas' },
+              { value: 'unpaid', label: 'Masih Utang' },
             ]}
           />
           <FilterActions>
@@ -153,10 +262,11 @@ export default function Destinations() {
               onClick={() => {
                 setSearchTerm('');
                 setFilterType('');
+                setFilterPaymentStatus('');
               }}
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              Clear filters
+              Hapus filter
             </button>
           </FilterActions>
         </CollapsibleFilters>
@@ -169,21 +279,14 @@ export default function Destinations() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nama Pelanggan
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipe
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Alamat
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Pembelian
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jumlah Transaksi
-                    </th>
+                    <SortableTh field="name" label="Nama Pelanggan" />
+                    <SortableTh field="type" label="Tipe" />
+                    <SortableTh field="alamat" label="Alamat" />
+                    <SortableTh field="totalPembelian" label="Total Pembelian" />
+                    <SortableTh field="jumlahTransaksi" label="Jumlah Transaksi" />
+                    <SortableTh field="totalTagihan" label="Total Tagihan (Rp)" />
+                    <SortableTh field="totalPembayaran" label="Total Pembayaran (Rp)" />
+                    <SortableTh field="totalUtang" label="Total Utang (Rp)" />
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Aksi
                     </th>
@@ -192,13 +295,18 @@ export default function Destinations() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredDestinations.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                      <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
                         {searchTerm || filterType ? 'Tidak ada pelanggan ditemukan' : 'Tidak ada data pelanggan'}
                       </td>
                     </tr>
                   ) : (
-                    filteredDestinations.map((destination) => (
-                      <tr key={destination.id}>
+                    sortedDestinations.map((destination) => {
+                      const hasDebt = (destination.totalUtang ?? 0) > 0;
+                      return (
+                      <tr
+                        key={destination.id}
+                        className={hasDebt ? 'bg-amber-50/60 hover:bg-amber-100/50' : undefined}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {destination.name}
                         </td>
@@ -220,6 +328,15 @@ export default function Destinations() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {destination.jumlahTransaksi || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {formatCurrency(destination.totalTagihan ?? 0)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {formatCurrency(destination.totalPembayaran ?? 0)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-amber-700">
+                          {formatCurrency((destination.totalUtang ?? 0) > 0 ? destination.totalUtang : 0)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
@@ -260,7 +377,8 @@ export default function Destinations() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                    );
+                    })
                   )}
                 </tbody>
               </table>
@@ -273,34 +391,39 @@ export default function Destinations() {
           onClose={() => {
             setShowModal(false);
             setEditing(null);
+            setFormErrors({});
             setFormData({ name: '', type: 'customer', alamat: '' });
           }}
           title={editing ? 'Edit Pelanggan' : 'Tambah Pelanggan'}
           size="md"
         >
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="space-y-4">
               <Input
                 label="Nama Pelanggan"
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (formErrors.name) setFormErrors((p) => ({ ...p, name: '' }));
+                }}
                 placeholder="Masukkan nama pelanggan"
+                error={formErrors.name}
               />
               <Select
                 label="Tipe"
                 required
                 value={formData.type}
-                onChange={(value) =>
-                  setFormData({ ...formData, type: value })
-                }
+                onChange={(value) => {
+                  setFormData({ ...formData, type: value });
+                  if (formErrors.type) setFormErrors((p) => ({ ...p, type: '' }));
+                }}
                 options={[
                   { value: 'customer', label: 'Pelanggan' },
                   { value: 'supplier', label: 'Pemasok' },
                 ]}
+                error={formErrors.type}
               />
               <Input
                 label="Alamat"
@@ -318,6 +441,7 @@ export default function Destinations() {
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
+                  setFormErrors({});
                   setFormData({ name: '', type: 'customer', alamat: '' });
                 }}
                 className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20"

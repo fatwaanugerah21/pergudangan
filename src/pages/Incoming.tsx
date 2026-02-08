@@ -12,11 +12,11 @@ import { Tooltip } from '../components/ui/tooltip';
 import { CreatableSelect } from '../components/ui/creatable-select';
 import { CollapsibleFilters, FilterActions } from '../components/ui/collapsible-filters';
 import { useToast } from '../contexts/ToastContext';
-import { formatNumberWithUnit, formatDateTime, formatCurrency } from '../utils/format';
+import { formatNumberWithUnit, formatDateTime, formatCurrency, toLocalDateTimeString } from '../utils/format';
 import { FaEdit, FaTrash, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import type { IncomingTransaction, RiceType, Supplier } from '../types';
 
-type SortField = 'date' | 'riceType' | 'quantity' | 'supplier' | null;
+type SortField = 'date' | 'riceType' | 'quantity' | 'supplier' | 'paymentAmount' | null;
 type SortDirection = 'asc' | 'desc' | null;
 
 interface IncomingFormData {
@@ -50,8 +50,9 @@ export default function Incoming() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editing, setEditing] = useState<IncomingTransaction | null>(null);
   const { showSuccess, showError } = useToast();
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<IncomingFormData>({
-    date: new Date().toISOString().slice(0, 16), // YYYY-MM-DDTHH:mm
+    date: toLocalDateTimeString(),
     riceTypeId: '',
     quantity: '',
     supplierId: '',
@@ -69,7 +70,7 @@ export default function Incoming() {
       const response = await api.get<IncomingTransaction[]>('/incoming', { params });
       setTransactions(response.data);
     } catch (err: any) {
-      showError(err.response?.data?.error || 'Failed to load transactions');
+      showError(err.response?.data?.error || 'Gagal memuat transaksi');
     } finally {
       setLoading(false);
     }
@@ -118,6 +119,18 @@ export default function Incoming() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const errors: Record<string, string> = {};
+    if (!formData.date?.trim()) errors.date = 'Tanggal & Waktu wajib diisi.';
+    if (!formData.riceTypeId?.trim()) errors.riceTypeId = 'Jenis Beras wajib dipilih.';
+    const qtyNum = formData.quantity ? parseFloat(formData.quantity.replace(/,/g, '')) : NaN;
+    if (!formData.quantity?.trim() || isNaN(qtyNum) || qtyNum <= 0) errors.quantity = 'Jumlah (Kg) wajib diisi dan harus lebih dari 0.';
+    if (!formData.supplierId?.trim()) errors.supplierId = 'Pemasok wajib dipilih.';
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+
     try {
       const paymentNum = formData.paymentAmount?.trim()
         ? parseFloat(formData.paymentAmount.replace(/,/g, ''))
@@ -136,24 +149,26 @@ export default function Incoming() {
       setShowModal(false);
       setEditing(null);
       setFormData({
-        date: new Date().toISOString().slice(0, 16),
+        date: toLocalDateTimeString(),
         riceTypeId: '',
         quantity: '',
         supplierId: '',
         paymentAmount: '',
         notes: '',
       });
+      setFormErrors({});
       fetchTransactions();
       fetchSuppliers();
     } catch (err: any) {
-      showError(err.response?.data?.error || 'Gagal menyimpan transaksi');
+      showError(err.response?.data?.error || 'Gagal menyimpan transaksi pemasukan');
     }
   };
 
   const handleEdit = (transaction: IncomingTransaction) => {
     setEditing(transaction);
+    setFormErrors({});
     setFormData({
-      date: new Date(transaction.date).toISOString().slice(0, 16),
+      date: toLocalDateTimeString(new Date(transaction.date)),
       riceTypeId: transaction.riceTypeId,
       quantity: transaction.quantity.toString(),
       supplierId: transaction.supplierId || transaction.supplier?.id || '',
@@ -179,7 +194,7 @@ export default function Incoming() {
       setShowDeleteDialog(false);
       setDeletingId(null);
     } catch (err: any) {
-      showError(err.response?.data?.error || 'Gagal menghapus transaksi');
+      showError(err.response?.data?.error || 'Gagal menghapus transaksi pemasukan');
     } finally {
       setIsDeleting(false);
     }
@@ -193,8 +208,9 @@ export default function Incoming() {
           <button
             onClick={() => {
               setEditing(null);
+              setFormErrors({});
               setFormData({
-                date: new Date().toISOString().slice(0, 16),
+                date: toLocalDateTimeString(),
                 riceTypeId: '',
                 quantity: '',
                 supplierId: '',
@@ -211,7 +227,7 @@ export default function Incoming() {
 
         {/* Collapsible Filters */}
         <CollapsibleFilters
-          label="Filters"
+          label="Filter"
           activeCount={
             (filters.riceTypeId ? 1 : 0) +
             (filters.supplierId ? 1 : 0) +
@@ -225,56 +241,56 @@ export default function Incoming() {
           className="mb-6"
         >
           <DatePicker
-            label="Start Date"
+            label="Dari Tanggal"
             value={filters.startDate || ''}
             onChange={(date) => setFilters({ ...filters, startDate: date || undefined })}
-            placeholder="Select start date"
+            placeholder="Pilih tanggal awal"
             maxDate={filters.endDate ? new Date(filters.endDate) : new Date()}
           />
           <DatePicker
-            label="End Date"
+            label="Sampai Tanggal"
             value={filters.endDate || ''}
             onChange={(date) => setFilters({ ...filters, endDate: date || undefined })}
-            placeholder="Select end date"
+            placeholder="Pilih tanggal akhir"
             maxDate={new Date()}
           />
           <Select
-            label="Rice Type"
+            label="Jenis Beras"
             value={filters.riceTypeId || ''}
             onChange={(value) => setFilters({ ...filters, riceTypeId: value || undefined })}
-            placeholder="All rice types"
+            placeholder="Semua jenis beras"
             options={[
-              { value: '', label: 'All rice types' },
+              { value: '', label: 'Semua jenis beras' },
               ...riceTypes.map((rt) => ({ value: rt.id, label: rt.name })),
             ]}
           />
           <Select
-            label="Supplier"
+            label="Pemasok"
             value={filters.supplierId || ''}
             onChange={(value) => setFilters({ ...filters, supplierId: value || undefined })}
-            placeholder="All suppliers"
+            placeholder="Semua pemasok"
             options={[
-              { value: '', label: 'All suppliers' },
+              { value: '', label: 'Semua pemasok' },
               ...suppliers.map((s) => ({ value: s.id, label: s.name })),
             ]}
           />
           <NumberInput
-            label="Quantity (Min)"
+            label="Jumlah (Min)"
             value={filters.minQuantity || ''}
             onChange={(value) => setFilters({ ...filters, minQuantity: value || undefined })}
             placeholder="0"
           />
           <NumberInput
-            label="Quantity (Max)"
+            label="Jumlah (Max)"
             value={filters.maxQuantity || ''}
             onChange={(value) => setFilters({ ...filters, maxQuantity: value || undefined })}
-            placeholder="Any"
+            placeholder="Semua"
           />
           <Input
-            label="Search Notes"
+            label="Cari Catatan"
             value={filters.notesSearch || ''}
             onChange={(e) => setFilters({ ...filters, notesSearch: e.target.value || undefined })}
-            placeholder="Search in notes..."
+            placeholder="Cari di catatan..."
           />
           <FilterActions className="sm:col-span-2 lg:col-span-4 xl:col-span-5">
             <button
@@ -291,7 +307,7 @@ export default function Incoming() {
               }
               className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
             >
-              Clear filters
+              Hapus filter
             </button>
           </FilterActions>
         </CollapsibleFilters>
@@ -400,8 +416,29 @@ export default function Incoming() {
                         )}
                       </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Jumlah Pembayaran
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      onClick={() => {
+                        if (sortField === 'paymentAmount') {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortField('paymentAmount');
+                          setSortDirection('asc');
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        Jumlah Pembayaran
+                        {sortField === 'paymentAmount' ? (
+                          sortDirection === 'asc' ? (
+                            <FaSortUp className="h-3 w-3" />
+                          ) : (
+                            <FaSortDown className="h-3 w-3" />
+                          )
+                        ) : (
+                          <FaSort className="h-3 w-3 text-gray-400" />
+                        )}
+                      </div>
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Catatan
@@ -453,6 +490,10 @@ export default function Incoming() {
                           case 'supplier':
                             aVal = a.supplier?.name || '';
                             bVal = b.supplier?.name || '';
+                            break;
+                          case 'paymentAmount':
+                            aVal = a.paymentAmount ?? 0;
+                            bVal = b.paymentAmount ?? 0;
                             break;
                           default:
                             return 0;
@@ -544,8 +585,9 @@ export default function Incoming() {
           onClose={() => {
             setShowModal(false);
             setEditing(null);
+            setFormErrors({});
             setFormData({
-              date: new Date().toISOString().slice(0, 16),
+              date: toLocalDateTimeString(),
               riceTypeId: '',
               quantity: '',
               supplierId: '',
@@ -556,46 +598,53 @@ export default function Incoming() {
           title={editing ? 'Edit Transaksi Pemasukan' : 'Tambah Transaksi Pemasukan'}
           size="md"
         >
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <div className="space-y-4">
               <DateTimePicker
                 label="Tanggal & Waktu"
                 required
                 value={formData.date}
-                onChange={(date) =>
-                  setFormData({ ...formData, date })
-                }
+                onChange={(date) => {
+                  setFormData({ ...formData, date });
+                  if (formErrors.date) setFormErrors((p) => ({ ...p, date: '' }));
+                }}
                 maxDate={new Date()}
+                error={formErrors.date}
               />
               <Select
                 label="Jenis Beras"
                 required
                 value={formData.riceTypeId}
-                onChange={(value) =>
-                  setFormData({ ...formData, riceTypeId: value })
-                }
+                onChange={(value) => {
+                  setFormData({ ...formData, riceTypeId: value });
+                  if (formErrors.riceTypeId) setFormErrors((p) => ({ ...p, riceTypeId: '' }));
+                }}
                 placeholder="Pilih jenis beras"
                 options={riceTypes.map((rt) => ({
                   value: rt.id,
                   label: rt.name,
                 }))}
+                error={formErrors.riceTypeId}
               />
               <NumberInput
                 label="Jumlah (Kg)"
                 required
                 value={formData.quantity}
-                onChange={(value) =>
-                  setFormData({ ...formData, quantity: value })
-                }
+                onChange={(value) => {
+                  setFormData({ ...formData, quantity: value });
+                  if (formErrors.quantity) setFormErrors((p) => ({ ...p, quantity: '' }));
+                }}
                 placeholder="0"
+                error={formErrors.quantity}
               />
               <CreatableSelect
                 label="Pemasok"
                 required
                 value={formData.supplierId}
-                onChange={(value) =>
-                  setFormData({ ...formData, supplierId: value })
-                }
+                onChange={(value) => {
+                  setFormData({ ...formData, supplierId: value });
+                  if (formErrors.supplierId) setFormErrors((p) => ({ ...p, supplierId: '' }));
+                }}
                 onCreateOption={createSupplier}
                 placeholder="Pilih atau ketik untuk membuat baru"
                 options={suppliers.map((supplier) => ({
@@ -603,6 +652,7 @@ export default function Incoming() {
                   label: supplier.name,
                 }))}
                 disabled={!!editing}
+                error={formErrors.supplierId}
               />
               <NumberInput
                 label="Pembayaran yang dibayar (Rp.)"
@@ -632,8 +682,9 @@ export default function Incoming() {
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
+                  setFormErrors({});
                   setFormData({
-                    date: new Date().toISOString().slice(0, 16),
+                    date: toLocalDateTimeString(),
                     riceTypeId: '',
                     quantity: '',
                     supplierId: '',
