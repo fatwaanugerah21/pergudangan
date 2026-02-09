@@ -374,6 +374,7 @@ export default function Debt() {
             setPayDate('');
             setPayFormErrors({});
           }}
+          preventClose={isSubmitting}
           title="Tambah Pembayaran"
           size="md"
         >
@@ -395,7 +396,7 @@ export default function Debt() {
                       setPayDate(v);
                       if (payFormErrors.payDate) setPayFormErrors((p) => ({ ...p, payDate: '' }));
                     }}
-                    maxDate={new Date()}
+                    maxDateTime={new Date()}
                     error={payFormErrors.payDate}
                   />
                   <NumberInput
@@ -413,17 +414,25 @@ export default function Debt() {
                   <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => setShowPayModal(false)}
-                      className="px-4 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium"
+                      className="px-4 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Batal
                     </button>
                     <button
                       type="submit"
                       disabled={isSubmitting}
-                      className="px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium"
+                      className="px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium inline-flex items-center justify-center gap-2"
                     >
-                      {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+                      {isSubmitting ? (
+                        <>
+                          <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Menyimpan...
+                        </>
+                      ) : (
+                        'Simpan'
+                      )}
                     </button>
                   </div>
                 </div>

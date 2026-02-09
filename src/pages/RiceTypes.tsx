@@ -23,6 +23,7 @@ export default function RiceTypes() {
     description: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export default function RiceTypes() {
       return;
     }
     setFormErrors({});
+    setIsSubmitting(true);
     try {
       if (editing) {
         await api.put(`/rice-types/${editing.id}`, formData);
@@ -64,6 +66,8 @@ export default function RiceTypes() {
       fetchRiceTypes();
     } catch (err: any) {
       showError(err.response?.data?.error || 'Gagal menyimpan jenis beras');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -202,6 +206,7 @@ title="Ubah"
             setFormErrors({});
             setFormData({ name: '', description: '' });
           }}
+          preventClose={isSubmitting}
           title={editing ? 'Edit Jenis Beras' : 'Tambah Jenis Beras'}
           size="md"
         >
@@ -235,6 +240,7 @@ title="Ubah"
             <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-200">
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
@@ -244,15 +250,23 @@ title="Ubah"
                     description: '',
                   });
                 }}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
-                Simpan
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan'
+                )}
               </button>
             </div>
           </form>

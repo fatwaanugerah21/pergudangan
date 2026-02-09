@@ -79,6 +79,19 @@ export const toLocalDateTimeString = (date: Date = new Date()): string => {
 };
 
 /**
+ * Convert a local datetime string (YYYY-MM-DDTHH:mm from datetime picker) to UTC ISO string for API.
+ * Ensures the server stores the exact instant the user chose, regardless of server timezone.
+ * @param localDateTime - Local datetime string from DateTimePicker (e.g. "2025-02-09T08:00")
+ * @returns ISO 8601 string in UTC (e.g. "2025-02-09T01:00:00.000Z") or empty string if invalid
+ */
+export const localDateTimeToUTCISO = (localDateTime: string | undefined | null): string => {
+  if (!localDateTime || !localDateTime.trim()) return '';
+  const date = new Date(localDateTime.trim());
+  if (isNaN(date.getTime())) return '';
+  return date.toISOString();
+};
+
+/**
  * Format date to Indonesian format (e.g., "16 Januari 2025")
  * @param date - Date string, Date object, or timestamp
  * @returns Formatted date string in Indonesian format

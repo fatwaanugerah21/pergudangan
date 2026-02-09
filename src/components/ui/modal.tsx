@@ -10,6 +10,8 @@ export interface ModalProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   showCloseButton?: boolean;
   closeOnOverlayClick?: boolean;
+  /** When true, overlay click and close button do not close the modal (e.g. while submitting) */
+  preventClose?: boolean;
 }
 
 const sizeClasses = {
@@ -28,6 +30,7 @@ export const Modal: React.FC<ModalProps> = ({
   size = 'md',
   showCloseButton = true,
   closeOnOverlayClick = true,
+  preventClose = false,
 }) => {
   const [_, setIsAnimating] = React.useState(false);
 
@@ -45,7 +48,7 @@ export const Modal: React.FC<ModalProps> = ({
   }, [isOpen]);
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (closeOnOverlayClick && e.target === e.currentTarget) {
+    if (!preventClose && closeOnOverlayClick && e.target === e.currentTarget) {
       onClose();
     }
   };
@@ -86,8 +89,10 @@ export const Modal: React.FC<ModalProps> = ({
               <h2 className="text-xl font-semibold text-slate-900">{title}</h2>
               {showCloseButton && (
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  disabled={preventClose}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                 >
                   <FaTimes className="h-5 w-5" />
                 </button>

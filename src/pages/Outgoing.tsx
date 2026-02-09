@@ -13,7 +13,7 @@ import { Tooltip } from '../components/ui/tooltip';
 import { CreatableSelect } from '../components/ui/creatable-select';
 import { CollapsibleFilters, FilterActions } from '../components/ui/collapsible-filters';
 import { useToast } from '../contexts/ToastContext';
-import { formatNumberWithUnit, formatDateTime, formatCurrency, toLocalDateTimeString } from '../utils/format';
+import { formatNumberWithUnit, formatDateTime, formatCurrency, toLocalDateTimeString, localDateTimeToUTCISO } from '../utils/format';
 import { FaEdit, FaTrash, FaSort, FaSortUp, FaSortDown, FaList } from 'react-icons/fa';
 
 interface Destination {
@@ -79,6 +79,7 @@ export default function Outgoing() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editing, setEditing] = useState<OutgoingTransaction | null>(null);
   const { showSuccess, showError } = useToast();
   const [formData, setFormData] = useState({
@@ -237,14 +238,20 @@ export default function Outgoing() {
       }
     }
 
+    setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         ...formData,
+        date: localDateTimeToUTCISO(formData.date) || formData.date,
         totalAmount: formData.totalAmount,
-        paymentAmount: formData.paymentAmount || '0',
-        scheduledDeliveryDate: formData.scheduledDeliveryDate || undefined,
+        scheduledDeliveryDate: (formData.scheduledDeliveryDate && formData.scheduledDeliveryDate.trim())
+          ? (localDateTimeToUTCISO(formData.scheduledDeliveryDate.trim()) || formData.scheduledDeliveryDate.trim())
+          : null,
         destinationId: formData.destinationId || undefined,
       };
+      if (!editing) {
+        payload.paymentAmount = formData.paymentAmount || '0';
+      }
 
       if (editing) {
         await api.put(`/outgoing/${editing.id}`, payload);
@@ -271,6 +278,8 @@ export default function Outgoing() {
       fetchDestinations(); // Refresh destinations
     } catch (err: any) {
       showError(err.response?.data?.error || 'Gagal menyimpan transaksi penjualan');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -656,6 +665,7 @@ export default function Outgoing() {
               notes: '',
             });
           }}
+          preventClose={isSubmitting}
           title={editing ? 'Edit Transaksi Penjualan' : 'Tambah Transaksi Penjualan'}
           size="md"
         >
@@ -669,7 +679,7 @@ export default function Outgoing() {
                   setFormData({ ...formData, date });
                   if (formErrors.date) setFormErrors((prev) => ({ ...prev, date: '' }));
                 }}
-                maxDate={new Date()}
+                maxDateTime={new Date()}
                 error={formErrors.date}
               />
               <Select
@@ -763,19 +773,30 @@ export default function Outgoing() {
                 const paymentNum = formData.paymentAmount != null && formData.paymentAmount !== '' ? parseFloat(String(formData.paymentAmount).replace(/,/g, '')) : NaN;
                 const paymentExceedsTotal = !isNaN(totalNum) && totalNum > 0 && !isNaN(paymentNum) && paymentNum > totalNum;
                 const totalAmountFilled = formData.totalAmount?.trim() && !isNaN(totalNum) && totalNum > 0;
+                const isPaymentReadOnly = !!editing;
                 return (
                   <NumberInput
                     label="Uang Diterima (Rp)"
                     required
                     value={formData.paymentAmount}
                     onChange={(value) => {
-                      setFormData({ ...formData, paymentAmount: value });
-                      if (formErrors.paymentAmount) setFormErrors((prev) => ({ ...prev, paymentAmount: '' }));
+                      if (!isPaymentReadOnly) {
+                        setFormData({ ...formData, paymentAmount: value });
+                        if (formErrors.paymentAmount) setFormErrors((prev) => ({ ...prev, paymentAmount: '' }));
+                      }
                     }}
                     placeholder="0"
-                    disabled={!totalAmountFilled}
+                    disabled={isPaymentReadOnly || !totalAmountFilled}
                     error={formErrors.paymentAmount || (paymentExceedsTotal ? 'Uang Diterima tidak boleh lebih dari Jumlah Tagihan.' : undefined)}
-                    helperText={!totalAmountFilled ? 'Isi Jumlah Tagihan terlebih dahulu' : (!paymentExceedsTotal && !formErrors.paymentAmount ? `Maksimal: ${formatCurrency(totalNum)}` : undefined)}
+                    helperText={
+                      isPaymentReadOnly
+                        ? 'Uang diterima tidak dapat diubah di sini. Untuk menambah atau mencatat pembayaran, gunakan halaman Utang.'
+                        : !totalAmountFilled
+                          ? 'Isi Jumlah Tagihan terlebih dahulu'
+                          : !paymentExceedsTotal && !formErrors.paymentAmount
+                            ? `Maksimal: ${formatCurrency(totalNum)}`
+                            : undefined
+                    }
                   />
                 );
               })()}
@@ -803,6 +824,7 @@ export default function Outgoing() {
             <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-200">
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
@@ -818,20 +840,27 @@ export default function Outgoing() {
                     notes: '',
                   });
                 }}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                disabled={(() => {
+                disabled={isSubmitting || (() => {
                   const totalNum = formData.totalAmount ? parseFloat(formData.totalAmount.replace(/,/g, '')) : NaN;
                   const paymentNum = formData.paymentAmount != null && formData.paymentAmount !== '' ? parseFloat(String(formData.paymentAmount).replace(/,/g, '')) : NaN;
                   return !isNaN(totalNum) && totalNum > 0 && !isNaN(paymentNum) && paymentNum > totalNum;
                 })()}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
-                Simpan
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan'
+                )}
               </button>
             </div>
           </form>

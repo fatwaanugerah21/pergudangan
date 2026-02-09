@@ -12,7 +12,7 @@ import { Tooltip } from '../components/ui/tooltip';
 import { CreatableSelect } from '../components/ui/creatable-select';
 import { CollapsibleFilters, FilterActions } from '../components/ui/collapsible-filters';
 import { useToast } from '../contexts/ToastContext';
-import { formatNumberWithUnit, formatDateTime, formatCurrency, toLocalDateTimeString } from '../utils/format';
+import { formatNumberWithUnit, formatDateTime, formatCurrency, toLocalDateTimeString, localDateTimeToUTCISO } from '../utils/format';
 import { FaEdit, FaTrash, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 import type { IncomingTransaction, RiceType, Supplier } from '../types';
 
@@ -48,6 +48,7 @@ export default function Incoming() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editing, setEditing] = useState<IncomingTransaction | null>(null);
   const { showSuccess, showError } = useToast();
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -131,12 +132,14 @@ export default function Incoming() {
     }
     setFormErrors({});
 
+    setIsSubmitting(true);
     try {
       const paymentNum = formData.paymentAmount?.trim()
         ? parseFloat(formData.paymentAmount.replace(/,/g, ''))
         : NaN;
       const payload = {
         ...formData,
+        date: localDateTimeToUTCISO(formData.date) || formData.date,
         paymentAmount: !isNaN(paymentNum) ? paymentNum : 0,
       };
       if (editing) {
@@ -161,6 +164,8 @@ export default function Incoming() {
       fetchSuppliers();
     } catch (err: any) {
       showError(err.response?.data?.error || 'Gagal menyimpan transaksi pemasukan');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -595,6 +600,7 @@ export default function Incoming() {
               notes: '',
             });
           }}
+          preventClose={isSubmitting}
           title={editing ? 'Edit Transaksi Pemasukan' : 'Tambah Transaksi Pemasukan'}
           size="md"
         >
@@ -608,7 +614,7 @@ export default function Incoming() {
                   setFormData({ ...formData, date });
                   if (formErrors.date) setFormErrors((p) => ({ ...p, date: '' }));
                 }}
-                maxDate={new Date()}
+                maxDateTime={new Date()}
                 error={formErrors.date}
               />
               <Select
@@ -679,6 +685,7 @@ export default function Incoming() {
             <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-200">
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => {
                   setShowModal(false);
                   setEditing(null);
@@ -692,15 +699,23 @@ export default function Incoming() {
                     notes: '',
                   });
                 }}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20"
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 border border-slate-300 text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                disabled={isSubmitting}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
-                Simpan
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan'
+                )}
               </button>
             </div>
           </form>

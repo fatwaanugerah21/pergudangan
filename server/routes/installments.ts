@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
+import { getTodayAndWeekEndInTimezone, getTimezoneOffsetFromRequest } from '../utils/timezone.js';
 
 const router: Router = express.Router();
 const prisma = new PrismaClient();
@@ -22,10 +23,9 @@ router.get('/', async (req: Request, res: Response) => {
       where.paidAt = null;
     }
     if (upcoming === 'true') {
-      const now = new Date();
-      const weekLater = new Date(now);
-      weekLater.setDate(weekLater.getDate() + 7);
-      where.dueDate = { gte: now, lte: weekLater };
+      const offsetHours = getTimezoneOffsetFromRequest(req);
+      const { startOfToday, endOfWeek } = getTodayAndWeekEndInTimezone(offsetHours);
+      where.dueDate = { gte: startOfToday, lte: endOfWeek };
       where.paidAt = null;
     }
 

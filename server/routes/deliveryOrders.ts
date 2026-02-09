@@ -1,6 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
+import { getTodayAndWeekEndInTimezone, getTimezoneOffsetFromRequest } from '../utils/timezone.js';
 
 const router: Router = express.Router();
 const prisma = new PrismaClient();
@@ -32,15 +33,14 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/upcoming', async (_req: Request, res: Response) => {
+router.get('/upcoming', async (req: Request, res: Response) => {
   try {
-    const now = new Date();
-    const weekLater = new Date(now);
-    weekLater.setDate(weekLater.getDate() + 7);
+    const offsetHours = getTimezoneOffsetFromRequest(req);
+    const { startOfToday, endOfWeek } = getTodayAndWeekEndInTimezone(offsetHours);
     const orders = await prisma.deliveryOrder.findMany({
       where: {
         status: { in: ['pending', 'dispatched'] },
-        scheduledDeliveryDate: { gte: now, lte: weekLater },
+        scheduledDeliveryDate: { gte: startOfToday, lte: endOfWeek },
       },
       include: { riceType: true, destination: true },
       orderBy: { scheduledDeliveryDate: 'asc' },

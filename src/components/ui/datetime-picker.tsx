@@ -13,14 +13,24 @@ export interface DateTimePickerProps
   maxDate?: string | Date;
   /** Min selectable date (no dates before this can be chosen) */
   minDate?: string | Date;
+  /** Max selectable date and time (e.g. new Date() to disallow future). When set, time on the max day is capped to this time. */
+  maxDateTime?: string | Date;
 }
 
 function toStartOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear()
+  );
+}
+
 const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
-  ({ className, label, error, helperText, value, onChange, maxDate, minDate, ...props }, ref) => {
+  ({ className, label, error, helperText, value, onChange, maxDate, minDate, maxDateTime, ...props }, ref) => {
     const [isFocused, setIsFocused] = React.useState(false);
     const [isOpen, setIsOpen] = React.useState(false);
     const [selectedDate, setSelectedDate] = React.useState<Date | null>(
@@ -38,15 +48,38 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
 
     React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
 
+    const maxDt = React.useMemo(() => {
+      if (!maxDateTime) return null;
+      const d = typeof maxDateTime === 'string' ? new Date(maxDateTime) : maxDateTime;
+      return !isNaN(d.getTime()) ? d : null;
+    }, [maxDateTime]);
+
     React.useEffect(() => {
-      if (value) {
+      if (value && value.trim()) {
         const date = new Date(value);
-        setSelectedDate(date);
-        setCurrentMonth(date);
-        setTimeValue({
-          hours: String(date.getHours()).padStart(2, '0'),
-          minutes: String(date.getMinutes()).padStart(2, '0'),
-        });
+        if (!isNaN(date.getTime())) {
+          let useDate = date;
+          let hours = date.getHours();
+          let minutes = date.getMinutes();
+          if (maxDt && date.getTime() > maxDt.getTime()) {
+            useDate = new Date(maxDt.getFullYear(), maxDt.getMonth(), maxDt.getDate());
+            hours = maxDt.getHours();
+            minutes = maxDt.getMinutes();
+            const h = String(hours).padStart(2, '0');
+            const m = String(minutes).padStart(2, '0');
+            const clamped = `${useDate.getFullYear()}-${String(useDate.getMonth() + 1).padStart(2, '0')}-${String(useDate.getDate()).padStart(2, '0')}T${h}:${m}`;
+            onChange?.(clamped);
+          }
+          setSelectedDate(useDate);
+          setCurrentMonth(useDate);
+          setTimeValue({
+            hours: String(hours).padStart(2, '0'),
+            minutes: String(minutes).padStart(2, '0'),
+          });
+        }
+      } else {
+        setSelectedDate(null);
+        setTimeValue({ hours: '00', minutes: '00' });
       }
     }, [value]);
 
@@ -70,7 +103,17 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
 
     const handleDateSelect = (date: Date) => {
       setSelectedDate(date);
-      const formatted = formatDateTime(date, timeValue.hours, timeValue.minutes);
+      let hours = timeValue.hours;
+      let minutes = timeValue.minutes;
+      if (maxDt && isSameCalendarDay(date, maxDt)) {
+        const candidate = new Date(date.getFullYear(), date.getMonth(), date.getDate(), parseInt(hours, 10) || 0, parseInt(minutes, 10) || 0);
+        if (candidate.getTime() > maxDt.getTime()) {
+          hours = String(maxDt.getHours()).padStart(2, '0');
+          minutes = String(maxDt.getMinutes()).padStart(2, '0');
+          setTimeValue({ hours, minutes });
+        }
+      }
+      const formatted = formatDateTime(date, hours, minutes);
       onChange?.(formatted);
     };
 
@@ -78,17 +121,30 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
       const numValue = parseInt(value) || 0;
       let newValue = value;
 
+      const maxH = maxDt && selectedDate && isSameCalendarDay(selectedDate, maxDt) ? maxDt.getHours() : 23;
+      const maxM = maxDt && selectedDate && isSameCalendarDay(selectedDate, maxDt) && parseInt(timeValue.hours, 10) === maxDt.getHours() ? maxDt.getMinutes() : 59;
       if (type === 'hours') {
         if (numValue < 0) newValue = '00';
-        else if (numValue > 23) newValue = '23';
+        else if (numValue > maxH) newValue = String(maxH).padStart(2, '0');
         else newValue = String(numValue).padStart(2, '0');
       } else {
         if (numValue < 0) newValue = '00';
-        else if (numValue > 59) newValue = '59';
+        else if (numValue > maxM) newValue = String(maxM).padStart(2, '0');
         else newValue = String(numValue).padStart(2, '0');
       }
 
       const newTimeValue = { ...timeValue, [type]: newValue };
+      let hours = newTimeValue.hours;
+      let minutes = newTimeValue.minutes;
+      if (selectedDate && maxDt && isSameCalendarDay(selectedDate, maxDt)) {
+        const candidate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), parseInt(hours, 10) || 0, parseInt(minutes, 10) || 0);
+        if (candidate.getTime() > maxDt.getTime()) {
+          hours = String(maxDt.getHours()).padStart(2, '0');
+          minutes = String(maxDt.getMinutes()).padStart(2, '0');
+          newTimeValue.hours = hours;
+          newTimeValue.minutes = minutes;
+        }
+      }
       setTimeValue(newTimeValue);
 
       if (selectedDate) {
@@ -145,7 +201,8 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
       );
     };
 
-    const max = maxDate ? (typeof maxDate === 'string' ? new Date(maxDate + 'T23:59:59') : maxDate) : null;
+    const maxFromDate = maxDate ? (typeof maxDate === 'string' ? new Date(maxDate + 'T23:59:59') : maxDate) : null;
+    const max = maxDt ? toStartOfDay(maxDt) : maxFromDate;
     const min = minDate ? (typeof minDate === 'string' ? new Date(minDate + 'T00:00:00') : minDate) : null;
     const isDateDisabled = (date: Date) => {
       const dayStart = toStartOfDay(date).getTime();
@@ -153,6 +210,9 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
       if (min && dayStart < toStartOfDay(min).getTime()) return true;
       return false;
     };
+    const isSameDayAsMax = maxDt && selectedDate ? isSameCalendarDay(selectedDate, maxDt) : false;
+    const maxHour = isSameDayAsMax && maxDt ? maxDt.getHours() : 23;
+    const maxMinute = isSameDayAsMax && maxDt && parseInt(timeValue.hours, 10) === maxDt.getHours() ? maxDt.getMinutes() : 59;
 
     React.useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
@@ -385,7 +445,7 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
                   <input
                     type="number"
                     min="0"
-                    max="23"
+                    max={maxHour}
                     value={timeValue.hours}
                     onChange={(e) => handleTimeChange('hours', e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-900 bg-white hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-200"
@@ -397,7 +457,7 @@ const DateTimePicker = React.forwardRef<HTMLInputElement, DateTimePickerProps>(
                   <input
                     type="number"
                     min="0"
-                    max="59"
+                    max={maxMinute}
                     value={timeValue.minutes}
                     onChange={(e) => handleTimeChange('minutes', e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-900 bg-white hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-colors duration-200"

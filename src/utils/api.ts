@@ -9,12 +9,14 @@ const api = axios.create({
   },
 });
 
-// Add token to requests
+// Add token and user timezone (for server date ranges: default GMT+8)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const offsetHours = -Math.round(new Date().getTimezoneOffset() / 60);
+  config.headers['X-Timezone-Offset'] = String(offsetHours);
   return config;
 });
 
