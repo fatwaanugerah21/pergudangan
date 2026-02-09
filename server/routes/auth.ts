@@ -25,20 +25,21 @@ router.post('/login', async (req: Request<{}, {}, LoginRequest>, res: Response) 
     });
 
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Email atau password salah' });
       return;
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password);
 
     if (!isValidPassword) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Email atau password salah' });
       return;
     }
 
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
-      res.status(500).json({ error: 'JWT secret not configured' });
+      console.error('JWT secret not configured');
+      res.status(500).json({ error: 'Ada kesalahan sistem silahkan hubungi admin' });
       return;
     }
 

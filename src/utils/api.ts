@@ -18,11 +18,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 errors (unauthorized)
+// Handle 401/403 errors (unauthorized) — do not redirect when the failed request was the login itself
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    const isLoginRequest = error.config?.url?.includes('auth/login');
+    if (
+      (error.response?.status === 401 || error.response?.status === 403) &&
+      !isLoginRequest
+    ) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
