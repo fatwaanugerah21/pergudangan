@@ -29,6 +29,7 @@ async function main() {
     },
   });
   console.log('Created admin user:', admin.email);
+  console.log('Created user user:', user.email);
 
   console.log('Seeding completed!');
 }
