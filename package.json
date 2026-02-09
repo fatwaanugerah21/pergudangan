@@ -9,8 +9,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "postinstall": "prisma generate",
-    "server": "tsx server/index.ts",
+    "build:server": "tsc -p tsconfig.server.json",
+    "server": "pnpm run build:server && node dist/server/index.js",
     "server:dev": "tsx watch server/index.ts",
+    "start:server": "pnpm run build:server && NODE_ENV=production node dist/server/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js"

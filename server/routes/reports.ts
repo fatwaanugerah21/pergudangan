@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken);
@@ -33,18 +33,18 @@ router.get('/', async (req: Request, res: Response) => {
       riceType?: {
         id: string;
         name: string;
-        unit: string;
         description?: string | null;
         createdAt: Date;
         updatedAt: Date;
       } | null;
       transactionType: 'incoming' | 'outgoing';
-      supplier?: string;
+      supplier?: { id: string; name: string; alamat: string | null; createdAt: Date; updatedAt: Date } | null;
       destinationId?: string;
       destination?: {
         id: string;
         name: string;
         type: string;
+        alamat?: string | null;
         createdAt: Date;
         updatedAt: Date;
       } | null;

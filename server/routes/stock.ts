@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken);
@@ -39,7 +39,11 @@ router.get('/current', async (_req: Request, res: Response) => {
 // Get stock history for a specific rice type
 router.get('/history/:riceTypeId', async (req: Request, res: Response) => {
   try {
-    const { riceTypeId } = req.params;
+    const riceTypeId = typeof req.params.riceTypeId === 'string' ? req.params.riceTypeId : req.params.riceTypeId?.[0];
+    if (!riceTypeId) {
+      res.status(400).json({ error: 'Invalid rice type id' });
+      return;
+    }
     const { startDate, endDate, type } = req.query;
 
     const where: {

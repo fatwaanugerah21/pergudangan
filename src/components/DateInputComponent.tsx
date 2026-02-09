@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef } from 'react';
+import { type InputHTMLAttributes, forwardRef } from 'react';
 
 interface DateInputComponentProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: string;
@@ -26,8 +26,8 @@ const DateInputComponent = forwardRef<HTMLInputElement, DateInputComponentProps>
               disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
               transition-colors duration-200
               [color-scheme:light]
-              ${error 
-                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500' 
+              ${error
+                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500'
                 : 'border-gray-300 text-gray-900'
               }
               ${className}

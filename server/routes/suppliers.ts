@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken);
@@ -45,8 +45,13 @@ router.get('/', async (_req: Request, res: Response) => {
 // Get a single supplier by ID
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid supplier id' });
+      return;
+    }
     const supplier = await prisma.supplier.findUnique({
-      where: { id: req.params.id },
+      where: { id },
     });
 
     if (!supplier) {
@@ -111,10 +116,15 @@ interface UpdateSupplierRequest {
 // Update supplier
 router.put('/:id', async (req: Request<{ id: string }, {}, UpdateSupplierRequest>, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid supplier id' });
+      return;
+    }
     const { name, alamat } = req.body;
     try {
       const supplier = await prisma.supplier.update({
-        where: { id: req.params.id },
+        where: { id },
         data: {
           name: name || undefined,
           alamat: alamat !== undefined ? (alamat || null) : undefined,
@@ -143,12 +153,14 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateSupplierRequest
 // Delete supplier
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    // Check if supplier has any transactions
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid supplier id' });
+      return;
+    }
     const supplier = await prisma.supplier.findUnique({
-      where: { id: req.params.id },
-      include: {
-        incomingTransactions: true,
-      },
+      where: { id },
+      include: { _count: { select: { incomingTransactions: true } } },
     });
 
     if (!supplier) {
@@ -156,15 +168,15 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    if (supplier.incomingTransactions.length > 0) {
+    if (supplier._count.incomingTransactions > 0) {
       res.status(400).json({
-        error: `Tidak dapat menghapus pemasok karena sudah memiliki ${supplier.incomingTransactions.length} transaksi pemasukan. Hapus semua transaksi terkait terlebih dahulu.`
+        error: `Cannot delete supplier: has ${supplier._count.incomingTransactions} incoming transaction(s). Remove related transactions first.`
       });
       return;
     }
 
     await prisma.supplier.delete({
-      where: { id: req.params.id },
+      where: { id },
     });
 
     res.status(204).send();

@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken);
@@ -54,8 +54,13 @@ router.get('/upcoming', async (_req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid order id' });
+      return;
+    }
     const order = await prisma.deliveryOrder.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: { riceType: true, destination: true },
     });
     if (!order) {

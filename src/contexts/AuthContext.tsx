@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import type { User } from '../types';
 import api from '../utils/api';
 
 interface AuthContextType {
@@ -25,7 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await api.post('/auth/login', { email, password });
       const { token, user: userData } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(userData));
       setUser(userData);

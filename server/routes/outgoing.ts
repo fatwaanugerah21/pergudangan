@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken);
@@ -52,8 +52,13 @@ router.get('/', async (req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid transaction id' });
+      return;
+    }
     const transaction = await prisma.outgoingTransaction.findUnique({
-      where: { id: req.params.id },
+      where: { id },
       include: {
         riceType: true,
         destination: true,
@@ -146,7 +151,7 @@ router.post('/', async (req: Request<{}, {}, CreateOutgoingRequest>, res: Respon
         where: { id: riceTypeId },
       });
       res.status(400).json({
-        error: `Stok tidak mencukupi. Stok tersedia: ${currentStock.toFixed(2)} ${riceType?.unit || 'kg'}, jumlah yang diminta: ${parseFloat(quantity.toString()).toFixed(2)} ${riceType?.unit || 'kg'}`
+        error: `Insufficient stock. Available: ${currentStock.toFixed(2)} kg, requested: ${parseFloat(quantity.toString()).toFixed(2)} kg`
       });
       return;
     }
@@ -272,7 +277,7 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
 
     // Get existing transaction to check if riceTypeId or quantity changed
     const existingTransaction = await prisma.outgoingTransaction.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     if (!existingTransaction) {
@@ -334,7 +339,7 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
           where: { id: finalRiceTypeId },
         });
         res.status(400).json({
-          error: `Stok tidak mencukupi. Stok tersedia: ${adjustedStock.toFixed(2)} ${riceType?.unit || 'kg'}, jumlah yang diminta: ${finalQuantity.toFixed(2)} ${riceType?.unit || 'kg'}`
+          error: `Insufficient stock. Available: ${adjustedStock.toFixed(2)} kg, requested: ${finalQuantity.toFixed(2)} kg`
         });
         return;
       }
@@ -369,12 +374,12 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
           updateData.paymentStatus = newPay >= total ? 'full' : newPay > 0 ? 'partial' : 'unpaid';
         }
         await tx.outgoingTransaction.update({
-          where: { id: req.params.id },
+          where: { id: req.params.id as string },
           data: updateData,
         });
 
         if (deliveryDate !== undefined) {
-          const existing = await tx.deliveryOrder.findFirst({ where: { outgoingTransactionId: req.params.id } });
+          const existing = await tx.deliveryOrder.findFirst({ where: { outgoingTransactionId: req.params.id as string } });
           if (deliveryDate) {
             if (existing) {
               await tx.deliveryOrder.update({
@@ -384,7 +389,7 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
             } else {
               await tx.deliveryOrder.create({
                 data: {
-                  outgoingTransactionId: req.params.id,
+                  outgoingTransactionId: req.params.id as string,
                   destinationId: finalDestinationId,
                   riceTypeId: finalRiceTypeId,
                   quantity: finalQuantity,
@@ -427,11 +432,11 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
         updateData.paymentStatus = newPay >= total ? 'full' : newPay > 0 ? 'partial' : 'unpaid';
       }
       await prisma.outgoingTransaction.update({
-        where: { id: req.params.id },
+        where: { id: req.params.id as string },
         data: updateData,
       });
       if (deliveryDate !== undefined) {
-        const existing = await prisma.deliveryOrder.findFirst({ where: { outgoingTransactionId: req.params.id } });
+        const existing = await prisma.deliveryOrder.findFirst({ where: { outgoingTransactionId: req.params.id as string } });
         if (deliveryDate) {
           if (existing) {
             await prisma.deliveryOrder.update({
@@ -441,7 +446,7 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
           } else {
             await prisma.deliveryOrder.create({
               data: {
-                outgoingTransactionId: req.params.id,
+                outgoingTransactionId: req.params.id as string,
                 destinationId: finalDestinationId,
                 riceTypeId: existingTransaction.riceTypeId,
                 quantity: existingTransaction.quantity,
@@ -456,7 +461,7 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
     }
 
     const transaction = await prisma.outgoingTransaction.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       include: {
         riceType: true,
         destination: true,
@@ -476,17 +481,17 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateOutgoingRequest
 
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    // Delete transaction and associated stock history in a transaction
-    // Deleting stock history will automatically return the stock to warehouse
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid transaction id' });
+      return;
+    }
     await prisma.$transaction(async (tx) => {
-      // Delete stock history entry first (this will return stock to warehouse)
       await tx.stockHistory.deleteMany({
-        where: { transactionId: req.params.id },
+        where: { transactionId: id },
       });
-
-      // Then delete the transaction
       await tx.outgoingTransaction.delete({
-        where: { id: req.params.id },
+        where: { id },
       });
     });
 

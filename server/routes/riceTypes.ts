@@ -1,8 +1,8 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { authenticateToken, AuthRequest } from '../middleware/auth.js';
 
-const router = express.Router();
+const router: Router = express.Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken);
@@ -21,8 +21,13 @@ router.get('/', async (_req: Request, res: Response) => {
 
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid rice type id' });
+      return;
+    }
     const riceType = await prisma.riceType.findUnique({
-      where: { id: req.params.id },
+      where: { id },
     });
 
     if (!riceType) {
@@ -72,11 +77,16 @@ interface UpdateRiceTypeRequest {
 
 router.put('/:id', async (req: Request<{ id: string }, {}, UpdateRiceTypeRequest>, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid rice type id' });
+      return;
+    }
     const { name, description } = req.body;
 
     try {
       const riceType = await prisma.riceType.update({
-        where: { id: req.params.id },
+        where: { id },
         data: {
           name: name || undefined,
           description: description !== undefined ? description : undefined,
@@ -99,9 +109,14 @@ router.put('/:id', async (req: Request<{ id: string }, {}, UpdateRiceTypeRequest
 
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const id = typeof req.params.id === 'string' ? req.params.id : req.params.id?.[0];
+    if (!id) {
+      res.status(400).json({ error: 'Invalid rice type id' });
+      return;
+    }
     try {
       await prisma.riceType.delete({
-        where: { id: req.params.id },
+        where: { id },
       });
 
       res.status(204).send();

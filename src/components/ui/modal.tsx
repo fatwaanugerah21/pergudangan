@@ -29,7 +29,7 @@ export const Modal: React.FC<ModalProps> = ({
   showCloseButton = true,
   closeOnOverlayClick = true,
 }) => {
-  const [isAnimating, setIsAnimating] = React.useState(false);
+  const [_, setIsAnimating] = React.useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
